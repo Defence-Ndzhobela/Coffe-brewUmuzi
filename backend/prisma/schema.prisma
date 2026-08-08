@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BrewMethod {
+  id        Int      @id @default(autoincrement()) @db.SmallInt
+  name      String   @unique @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  brews     Brew[]
+
+  @@map("brew_methods")
+}
+
+model Brew {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  legacyId    String?    @unique @map("legacy_id")
+  beans       String     @db.VarChar(160)
+  methodId    Int        @map("method_id") @db.SmallInt
+  coffeeGrams Decimal    @map("coffee_grams") @db.Decimal(7, 2)
+  waterGrams  Decimal    @map("water_grams") @db.Decimal(7, 2)
+  rating      Int        @db.SmallInt
+  tastingNotes String?   @map("tasting_notes")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
+  method      BrewMethod @relation(fields: [methodId], references: [id])
+
+  @@index([createdAt(sort: Desc)], map: "idx_brews_created_at_desc")
+  @@index([methodId, createdAt(sort: Desc)], map: "idx_brews_method_created_at")
+  @@map("brews")
+}

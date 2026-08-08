@@ -9,7 +9,7 @@ Users can create, read, filter, update, and delete brew records.
 - Styling: Tailwind CSS
 - Backend: Node.js + Express
 - Database: PostgreSQL (Neon)
-- Data Access: SQL service layer (current implementation)
+- ORM: Prisma
 
 ## Repository Structure
 - frontend: React app and UI components
@@ -76,5 +76,4 @@ Frontend runs on port 3000 and proxies /api requests to backend port 4000.
 - If database calls fail, verify backend/.env DATABASE_URL and test with POST /api/setup-db.
 
 ## Current Limitations
-- ORM is not yet integrated.
 - Deployment URL is documented in deployment.md once published.

@@ -1,45 +1,46 @@
-const { sql } = require("./db");
+const { prisma } = require("./prisma");
 
 const toBrewDto = (row) => ({
   id: row.id,
   beans: row.beans,
-  method: row.method,
-  coffeeGrams: Number(row.coffee_grams),
-  waterGrams: Number(row.water_grams),
+  method: row.method.name,
+  coffeeGrams: Number(row.coffeeGrams),
+  waterGrams: Number(row.waterGrams),
   rating: Number(row.rating),
-  tastingNotes: row.tasting_notes ?? undefined,
+  tastingNotes: row.tastingNotes ?? undefined,
   createdAt:
-    typeof row.created_at === "string"
-      ? row.created_at
-      : new Date(row.created_at).toISOString(),
+    typeof row.createdAt === "string"
+      ? row.createdAt
+      : new Date(row.createdAt).toISOString(),
 });
 
 const getMethodIdByName = async (methodName) => {
-  const result = await sql`
-    SELECT id FROM brew_methods WHERE name = ${methodName}
-  `;
+  const method = await prisma.brewMethod.findUnique({
+    where: { name: methodName },
+    select: { id: true },
+  });
 
-  if (!result[0]) {
+  if (!method) {
     const error = new Error(`Brew method not found: ${methodName}`);
     error.status = 400;
     throw error;
   }
 
-  return result[0].id;
+  return method.id;
 };
 
 const applySchema = async () => {
-  await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
+  await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS brew_methods (
       id SMALLSERIAL PRIMARY KEY,
       name VARCHAR(40) NOT NULL UNIQUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     INSERT INTO brew_methods (name)
     VALUES
       ('Aeropress'),
@@ -48,9 +49,9 @@ const applySchema = async () => {
       ('French Press'),
       ('Chemex')
     ON CONFLICT (name) DO NOTHING
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS brews (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       legacy_id TEXT UNIQUE,
@@ -63,9 +64,9 @@ const applySchema = async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE OR REPLACE FUNCTION set_updated_at()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -73,125 +74,98 @@ const applySchema = async () => {
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql
-  `;
+  `);
 
-  await sql`DROP TRIGGER IF EXISTS tr_brews_updated_at ON brews`;
+  await prisma.$executeRawUnsafe(`
+    DROP TRIGGER IF EXISTS tr_brews_updated_at ON brews
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE TRIGGER tr_brews_updated_at
     BEFORE UPDATE ON brews
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at()
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS idx_brews_created_at_desc
     ON brews (created_at DESC)
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS idx_brews_method_created_at
     ON brews (method_id, created_at DESC)
-  `;
+  `);
 
-  await sql`
+  await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS idx_brews_beans_lower
     ON brews (LOWER(beans))
-  `;
+  `);
 };
 
 const getHealthNow = async () => {
-  const result = await sql`SELECT NOW() AS now`;
+  const result = await prisma.$queryRawUnsafe(`SELECT NOW() AS now`);
   return result[0].now;
 };
 
 const listBrews = async () => {
-  const rows = await sql`
-    SELECT
-      b.id,
-      b.beans,
-      m.name AS method,
-      b.coffee_grams,
-      b.water_grams,
-      b.rating,
-      b.tasting_notes,
-      b.created_at
-    FROM brews b
-    INNER JOIN brew_methods m ON m.id = b.method_id
-    ORDER BY b.created_at DESC
-  `;
+  const rows = await prisma.brew.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { method: true },
+  });
 
   return rows.map(toBrewDto);
 };
 
 const getBrewById = async (id) => {
-  const rows = await sql`
-    SELECT
-      b.id,
-      b.beans,
-      m.name AS method,
-      b.coffee_grams,
-      b.water_grams,
-      b.rating,
-      b.tasting_notes,
-      b.created_at
-    FROM brews b
-    INNER JOIN brew_methods m ON m.id = b.method_id
-    WHERE b.id = ${id}
-  `;
+  const row = await prisma.brew.findUnique({
+    where: { id },
+    include: { method: true },
+  });
 
-  if (!rows[0]) {
+  if (!row) {
     return null;
   }
 
-  return toBrewDto(rows[0]);
+  return toBrewDto(row);
 };
 
 const createBrew = async (payload) => {
   const methodId = await getMethodIdByName(payload.method);
   const tastingNotes = payload.tastingNotes?.trim() || null;
 
-  const inserted = await sql`
-    INSERT INTO brews (
-      beans,
-      method_id,
-      coffee_grams,
-      water_grams,
-      rating,
-      tasting_notes
-    )
-    VALUES (
-      ${String(payload.beans).trim()},
-      ${methodId},
-      ${Number(payload.coffeeGrams)},
-      ${Number(payload.waterGrams)},
-      ${Number(payload.rating)},
-      ${tastingNotes}
-    )
-    RETURNING id
-  `;
+  const created = await prisma.brew.create({
+    data: {
+      beans: String(payload.beans).trim(),
+      methodId,
+      coffeeGrams: Number(payload.coffeeGrams),
+      waterGrams: Number(payload.waterGrams),
+      rating: Number(payload.rating),
+      tastingNotes,
+    },
+    select: { id: true },
+  });
 
-  return getBrewById(inserted[0].id);
+  return getBrewById(created.id);
 };
 
 const updateBrew = async (id, payload) => {
   const methodId = await getMethodIdByName(payload.method);
   const tastingNotes = payload.tastingNotes?.trim() || null;
 
-  const updated = await sql`
-    UPDATE brews
-    SET
-      beans = ${String(payload.beans).trim()},
-      method_id = ${methodId},
-      coffee_grams = ${Number(payload.coffeeGrams)},
-      water_grams = ${Number(payload.waterGrams)},
-      rating = ${Number(payload.rating)},
-      tasting_notes = ${tastingNotes}
-    WHERE id = ${id}
-    RETURNING id
-  `;
+  const updated = await prisma.brew.updateMany({
+    where: { id },
+    data: {
+      beans: String(payload.beans).trim(),
+      methodId,
+      coffeeGrams: Number(payload.coffeeGrams),
+      waterGrams: Number(payload.waterGrams),
+      rating: Number(payload.rating),
+      tastingNotes,
+    },
+  });
 
-  if (!updated[0]) {
+  if (updated.count === 0) {
     const error = new Error("Brew not found.");
     error.status = 404;
     throw error;
@@ -201,11 +175,11 @@ const updateBrew = async (id, payload) => {
 };
 
 const removeBrew = async (id) => {
-  const deleted = await sql`
-    DELETE FROM brews WHERE id = ${id} RETURNING id
-  `;
+  const deleted = await prisma.brew.deleteMany({
+    where: { id },
+  });
 
-  if (!deleted[0]) {
+  if (deleted.count === 0) {
     const error = new Error("Brew not found.");
     error.status = 404;
     error.success = false;
@@ -216,7 +190,7 @@ const removeBrew = async (id) => {
 };
 
 const resetBrews = async () => {
-  await sql`DELETE FROM brews`;
+  await prisma.brew.deleteMany();
   return [];
 };
 
