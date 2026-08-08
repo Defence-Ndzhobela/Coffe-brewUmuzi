@@ -40,10 +40,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onResetData}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-300 hover:text-white hover:bg-stone-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
-            title="Reset to initial sample brews"
+            title="Clear all brew records from database"
           >
             <RotateCcw className="w-3.5 h-3.5 text-stone-400" />
-            <span className="hidden md:inline">Reset Samples</span>
+            <span className="hidden md:inline">Clear Records</span>
           </button>
 
           <button

@@ -1,112 +1,86 @@
 import { Brew, BrewFormData } from '../types';
-import { INITIAL_MOCK_BREWS } from '../data/mockBrews';
 
-const STORAGE_KEY = 'brew_log_records_v1';
+const API_BASE = '/api';
 
-/**
- * Service layer for Brew records.
- * Currently backed by LocalStorage for frontend standalone mode.
- * 
- * FUTURE BACKEND INTEGRATION POINT:
- * Replace these local functions with HTTP fetch calls to a Node.js/Express API.
- */
-
-/**
- * Retrieve all brew records.
- * FUTURE REST EQUIVALENT: GET /api/brews
- */
-export const getBrews = (): Brew[] => {
+const parseError = async (res: Response): Promise<string> => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) {
-      // Seed with initial mock data if first time
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_MOCK_BREWS));
-      return INITIAL_MOCK_BREWS;
+    const data = await res.json();
+    if (Array.isArray(data?.errors)) {
+      return data.errors.join(', ');
     }
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : INITIAL_MOCK_BREWS;
-  } catch (error) {
-    console.error('Failed to read brews from localStorage:', error);
-    return INITIAL_MOCK_BREWS;
+    return data?.error || data?.message || `Request failed (${res.status})`;
+  } catch {
+    return `Request failed (${res.status})`;
   }
 };
 
-/**
- * Save all brews to localStorage helper.
- */
-const saveAllBrews = (brews: Brew[]): void => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(brews));
-  } catch (error) {
-    console.error('Failed to save brews to localStorage:', error);
+export const getBrews = async (): Promise<Brew[]> => {
+  const res = await fetch(`${API_BASE}/brews`);
+  if (!res.ok) {
+    throw new Error(await parseError(res));
   }
+  return (await res.json()) as Brew[];
 };
 
-/**
- * Create a new brew record.
- * FUTURE REST EQUIVALENT: POST /api/brews
- * Body: { beans, method, coffeeGrams, waterGrams, rating, tastingNotes }
- */
-export const createBrew = (brewData: BrewFormData): Brew => {
-  const currentBrews = getBrews();
-  const newBrew: Brew = {
-    ...brewData,
-    id: `brew-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    createdAt: new Date().toISOString(),
-  };
-
-  const updated = [newBrew, ...currentBrews];
-  saveAllBrews(updated);
-  return newBrew;
-};
-
-/**
- * Update an existing brew record by ID.
- * FUTURE REST EQUIVALENT: PUT /api/brews/:id
- * Body: { beans, method, coffeeGrams, waterGrams, rating, tastingNotes }
- */
-export const updateBrew = (id: string, brewData: Partial<BrewFormData>): Brew => {
-  const currentBrews = getBrews();
-  let updatedBrew: Brew | null = null;
-
-  const updated = currentBrews.map((brew) => {
-    if (brew.id === id) {
-      updatedBrew = {
-        ...brew,
-        ...brewData,
-      };
-      return updatedBrew;
-    }
-    return brew;
+export const createBrew = async (brewData: BrewFormData): Promise<Brew> => {
+  const res = await fetch(`${API_BASE}/brews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(brewData),
   });
 
-  if (!updatedBrew) {
-    throw new Error(`Brew with ID "${id}" not found.`);
+  if (!res.ok) {
+    throw new Error(await parseError(res));
   }
 
-  saveAllBrews(updated);
-  return updatedBrew;
+  return (await res.json()) as Brew;
 };
 
-/**
- * Delete a brew record by ID.
- * FUTURE REST EQUIVALENT: DELETE /api/brews/:id
- */
-export const deleteBrew = (id: string): boolean => {
-  const currentBrews = getBrews();
-  const filtered = currentBrews.filter((brew) => brew.id !== id);
-  if (filtered.length === currentBrews.length) {
-    return false;
+export const updateBrew = async (id: string, brewData: BrewFormData): Promise<Brew> => {
+  const res = await fetch(`${API_BASE}/brews/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(brewData),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res));
   }
-  saveAllBrews(filtered);
-  return true;
+
+  return (await res.json()) as Brew;
 };
 
-/**
- * Reset brew records back to initial mock data.
- * Useful for demo/testing purposes.
- */
-export const resetToMockData = (): Brew[] => {
-  saveAllBrews(INITIAL_MOCK_BREWS);
-  return INITIAL_MOCK_BREWS;
+export const deleteBrew = async (id: string): Promise<boolean> => {
+  const res = await fetch(`${API_BASE}/brews/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res));
+  }
+
+  const data = (await res.json()) as { success: boolean };
+  return data.success;
+};
+
+export const resetBrews = async (): Promise<Brew[]> => {
+  const res = await fetch(`${API_BASE}/brews/reset`, {
+    method: 'POST',
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res));
+  }
+
+  return (await res.json()) as Brew[];
+};
+
+export const setupDatabase = async (): Promise<void> => {
+  const res = await fetch(`${API_BASE}/setup-db`, {
+    method: 'POST',
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res));
+  }
 };

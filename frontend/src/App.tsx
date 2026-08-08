@@ -5,7 +5,8 @@ import {
   createBrew,
   updateBrew,
   deleteBrew,
-  resetToMockData,
+  resetBrews,
+  setupDatabase,
 } from './services/brewService';
 import { Navbar } from './components/Navbar';
 import { MethodFilter } from './components/MethodFilter';
@@ -14,22 +15,38 @@ import { AddBrewModal } from './components/AddBrewModal';
 import { EditBrewModal } from './components/EditBrewModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { StatsSummary } from './components/StatsSummary';
-import { Plus, Coffee, Search, RefreshCw } from 'lucide-react';
+import { Plus, Coffee, Search } from 'lucide-react';
 
 export default function App() {
   const [brews, setBrews] = useState<Brew[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<MethodFilterType>('All methods');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [editingBrew, setEditingBrew] = useState<Brew | null>(null);
   const [deletingBrew, setDeletingBrew] = useState<Brew | null>(null);
 
-  // Load initial brews from localStorage service
+  // Load initial brews from API service
   useEffect(() => {
-    const loadedBrews = getBrews();
-    setBrews(loadedBrews);
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+        await setupDatabase();
+        const loadedBrews = await getBrews();
+        setBrews(loadedBrews);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load brews.';
+        setErrorMessage(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void load();
   }, []);
 
   // Compute method counts for the filter dropdown
@@ -58,24 +75,40 @@ export default function App() {
   }, [brews, selectedMethod, searchQuery]);
 
   // Handle Add Brew
-  const handleAddBrew = (formData: BrewFormData) => {
-    const newBrew = createBrew(formData);
-    setBrews((prev) => [newBrew, ...prev]);
+  const handleAddBrew = async (formData: BrewFormData) => {
+    try {
+      const newBrew = await createBrew(formData);
+      setBrews((prev) => [newBrew, ...prev]);
+      setErrorMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create brew.';
+      setErrorMessage(message);
+    }
   };
 
   // Handle Update Brew
-  const handleUpdateBrew = (id: string, formData: BrewFormData) => {
-    const updated = updateBrew(id, formData);
-    setBrews((prev) =>
-      prev.map((b) => (b.id === id ? updated : b))
-    );
+  const handleUpdateBrew = async (id: string, formData: BrewFormData) => {
+    try {
+      const updated = await updateBrew(id, formData);
+      setBrews((prev) => prev.map((b) => (b.id === id ? updated : b)));
+      setErrorMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update brew.';
+      setErrorMessage(message);
+    }
   };
 
   // Handle Delete Brew
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deletingBrew) return;
-    deleteBrew(deletingBrew.id);
-    setBrews((prev) => prev.filter((b) => b.id !== deletingBrew.id));
+    try {
+      await deleteBrew(deletingBrew.id);
+      setBrews((prev) => prev.filter((b) => b.id !== deletingBrew.id));
+      setErrorMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete brew.';
+      setErrorMessage(message);
+    }
     
     // Close edit modal if it was open for this brew
     if (editingBrew && editingBrew.id === deletingBrew.id) {
@@ -84,13 +117,21 @@ export default function App() {
     setDeletingBrew(null);
   };
 
-  // Handle Reset to initial mock data
-  const handleResetData = () => {
-    if (window.confirm('Reset all brews back to initial sample records?')) {
-      const reset = resetToMockData();
+  // Handle reset by clearing brews in database
+  const handleResetData = async () => {
+    if (!window.confirm('Delete all brew records from the database?')) {
+      return;
+    }
+
+    try {
+      const reset = await resetBrews();
       setBrews(reset);
       setSelectedMethod('All methods');
       setSearchQuery('');
+      setErrorMessage('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to reset brews.';
+      setErrorMessage(message);
     }
   };
 
@@ -137,6 +178,18 @@ export default function App() {
 
         {/* Quick Stats Summary */}
         <StatsSummary brews={brews} />
+
+        {isLoading && (
+          <div className="bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-600">
+            Loading brews from database...
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-800">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Controls Toolbar: Filter by Method & Search */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -200,7 +253,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© {new Date().getFullYear()} Brew Log — Professional Coffee Tracker</p>
           <p className="text-stone-500">
-            Prepared for Express API connectivity (GET/POST/PUT/DELETE /api/brews)
+            Connected to PostgreSQL API (GET/POST/PUT/DELETE /api/brews)
           </p>
         </div>
       </footer>
