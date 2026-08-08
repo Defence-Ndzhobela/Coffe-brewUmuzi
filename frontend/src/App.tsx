@@ -58,6 +58,11 @@ export default function App() {
     return counts;
   }, [brews]);
 
+  // Keep page title in sync with current brew count.
+  useEffect(() => {
+    document.title = `Brews: ${brews.length}`;
+  }, [brews.length]);
+
   // Filter brews based on selected method & optional search query
   const filteredBrews = useMemo(() => {
     return brews.filter((brew) => {
