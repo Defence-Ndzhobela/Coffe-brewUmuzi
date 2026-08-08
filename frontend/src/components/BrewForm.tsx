@@ -75,6 +75,10 @@ export const BrewForm: React.FC<BrewFormProps> = ({
       newErrors.rating = 'Rating must be between 0 and 5.';
     }
 
+    if (!tastingNotes.trim()) {
+      newErrors.tastingNotes = 'Tasting notes are required.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -87,6 +91,7 @@ export const BrewForm: React.FC<BrewFormProps> = ({
       coffeeGrams: true,
       waterGrams: true,
       rating: true,
+      tastingNotes: true,
     });
 
     if (validate()) {
@@ -96,7 +101,7 @@ export const BrewForm: React.FC<BrewFormProps> = ({
         coffeeGrams: cGramsNum,
         waterGrams: wGramsNum,
         rating,
-        tastingNotes: tastingNotes.trim() || undefined,
+        tastingNotes: tastingNotes.trim(),
       });
     }
   };
@@ -270,16 +275,29 @@ export const BrewForm: React.FC<BrewFormProps> = ({
       {/* 6. Tasting Notes */}
       <div>
         <label htmlFor="tastingNotes" className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
-          Tasting Notes
+          Tasting Notes <span className="text-rose-500">*</span>
         </label>
         <textarea
           id="tastingNotes"
           rows={3}
           value={tastingNotes}
-          onChange={(e) => setTastingNotes(e.target.value)}
+          onChange={(e) => {
+            setTastingNotes(e.target.value);
+            if (errors.tastingNotes) {
+              setErrors((prev) => ({ ...prev, tastingNotes: undefined }));
+            }
+          }}
+          onBlur={() => setTouched((p) => ({ ...p, tastingNotes: true }))}
           placeholder="e.g. Heavy body, soft finish, nutty aroma, floral acidity..."
-          className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all resize-none"
+          className={`w-full rounded-xl border ${
+            errors.tastingNotes && touched.tastingNotes
+              ? 'border-rose-500 ring-1 ring-rose-500'
+              : 'border-stone-300'
+          } bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all resize-none`}
         />
+        {errors.tastingNotes && touched.tastingNotes && (
+          <p className="mt-1 text-xs text-rose-600 font-medium">{errors.tastingNotes}</p>
+        )}
       </div>
 
       {/* Action Buttons */}

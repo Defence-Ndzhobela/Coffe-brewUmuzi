@@ -69,6 +69,7 @@ Frontend runs on port 3000 and proxies /api requests to backend port 4000.
 ## Validation Notes
 - Frontend validates required fields and numeric ranges before submit.
 - Backend validates payload fields and returns HTTP 400 for invalid input.
+- Tasting notes are required for create and update operations.
 
 ## Troubleshooting
 - If you see Cannot GET / on backend, use http://localhost:4000/api/health or ensure backend is running.
@@ -76,4 +77,4 @@ Frontend runs on port 3000 and proxies /api requests to backend port 4000.
 - If database calls fail, verify backend/.env DATABASE_URL and test with POST /api/setup-db.
 
 ## Current Limitations
-- Deployment URL is documented in deployment.md once published.
+- No automated unit or integration tests are configured yet.

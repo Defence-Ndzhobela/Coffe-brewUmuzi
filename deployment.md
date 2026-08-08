@@ -1,38 +1,43 @@
 # Deployment
 
 ## Live URL
-Not deployed yet.
-
-When deployed, add the live URL here:
-- Frontend URL: <add-frontend-url>
-- Backend URL: <add-backend-url>
+- Frontend URL: https://defence-coffe-brew.vercel.app/
+- Backend URL: https://coffe-brewumuzibackend.onrender.com
 
 ## Planned Deployment Approach
-- Frontend: deploy on Vercel or Netlify
-- Backend: deploy on Render or Railway
+- Frontend: Vercel
+- Backend: Render
 - Database: Neon PostgreSQL
 
 ## Environment Variables
 Backend requires:
 - DATABASE_URL
-- PORT (optional; defaults to 4000 locally)
+- NODE_ENV
+- FRONTEND_URL
+- PORT (provided by Render in production)
 
 Frontend may require:
-- No secret keys needed for current CRUD flow (uses backend proxy/API)
+- VITE_API_BASE_URL
+- VITE_API_PROXY_TARGET (local development)
 
 ## Deployment Notes and Troubleshooting
-If deployment fails, record details here:
-
 1. What was tried
-- Created service and connected repository
-- Added environment variables
-- Set build/start commands
+- Created Render backend service with root directory set to backend
+- Set build command to install dependencies and run Prisma generation and db sync
+- Set start command to npm start
+- Deployed frontend to Vercel and connected environment variables
 
 2. Errors seen
-- <add error message here>
+- 404 NOT_FOUND when calling /api/setup-db on Vercel domain
+- Browser GET request used for an endpoint that expects POST
 
 3. Fix attempts
-- <add fix steps here>
+- Updated frontend API client to use VITE_API_BASE_URL in production
+- Kept local Vite proxy for development only
+- Added Vite env typing file for TypeScript compatibility
+- Verified backend CORS FRONTEND_URL and API URL wiring
 
 4. Final status
-- <deployed / not deployed>
+- Deployed and reachable:
+	- https://defence-coffe-brew.vercel.app/
+	- https://coffe-brewumuzibackend.onrender.com

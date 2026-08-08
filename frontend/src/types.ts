@@ -11,7 +11,14 @@ export interface Brew {
   createdAt?: string;
 }
 
-export type BrewFormData = Omit<Brew, 'id' | 'createdAt'>;
+export interface BrewFormData {
+  beans: string;
+  method: BrewMethod;
+  coffeeGrams: number;
+  waterGrams: number;
+  rating: number;
+  tastingNotes: string;
+}
 
 export type MethodFilterType = 'All methods' | BrewMethod;
 
@@ -21,4 +28,5 @@ export interface ValidationErrors {
   coffeeGrams?: string;
   waterGrams?: string;
   rating?: string;
+  tastingNotes?: string;
 }

@@ -37,6 +37,10 @@ const validateBrewPayload = (payload) => {
     errors.push("rating must be between 0 and 5.");
   }
 
+  if (!payload.tastingNotes || !String(payload.tastingNotes).trim()) {
+    errors.push("tastingNotes is required.");
+  }
+
   return errors;
 };
 
