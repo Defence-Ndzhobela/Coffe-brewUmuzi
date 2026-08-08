@@ -1,6 +1,6 @@
 import { Brew, BrewFormData } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || '/api';
 
 const parseError = async (res: Response): Promise<string> => {
   try {
