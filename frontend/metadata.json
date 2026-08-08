@@ -1,0 +1,6 @@
+{
+  "name": "Brew Log",
+  "description": "A modern, professional coffee brew tracking application for coffee enthusiasts and baristas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
